@@ -17,3 +17,11 @@ serde_derive = "1.0.103"
 juniper = { version = "0.14.2", features = ["uuid"] }
 uuid = { version = "0.7", features = ["serde", "v4"] }
 listenfd = "0.3"
+hyper = "0.13"
+tokio = { version = "0.2", features = ["full"] }
+curl = "0.4.30"
+actix = "0.7"
+futures = "0.3"
+futures-timer="3.0.2"
+futures-util="0.3.5"
+sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio", "macros" ] }

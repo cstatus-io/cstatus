@@ -1,5 +1,5 @@
 use std::io;
-use std::sync::Arc;
+use std::{sync::Arc, thread, time::Duration};
 
 use actix_files::Files;
 use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
@@ -8,8 +8,11 @@ use juniper::http::GraphQLRequest;
 use listenfd::ListenFd;
 
 mod schema;
+mod worker;
 
 use crate::schema::{create_schema, Schema};
+use crate::worker::Worker;
+use curl::easy::{Easy2, Handler, WriteError};
 
 async fn graphiql() -> HttpResponse {
     let html = graphiql_source("http://127.0.0.1:3000/graphql");
@@ -32,15 +35,23 @@ async fn graphql(
         .body(user))
 }
 
+struct Collector(Vec<u8>);
+
+impl Handler for Collector {
+    fn write(&mut self, data: &[u8]) -> Result<usize, WriteError> {
+        self.0.extend_from_slice(data);
+        Ok(data.len())
+    }
+}
+
 #[actix_rt::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "actix_web=warn");
     env_logger::init();
-
     let mut listenfd = ListenFd::from_env();
     // Create Juniper schema
-    let schema = std::sync::Arc::new(create_schema());
-
+    let schema = std::sync::Arc::new(create_schema().await);
+    // Still inside `async fn main`...
     // Start http server
     let mut server = HttpServer::new(move || {
         App::new()
@@ -60,6 +71,6 @@ async fn main() -> io::Result<()> {
     } else {
         server.bind("127.0.0.1:3000")?
     };
-
+    Worker.start();
     server.run().await
 }
